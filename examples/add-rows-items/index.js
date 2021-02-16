@@ -1,6 +1,7 @@
 import GSTC from '../../dist/gstc.esm.min.js';
 
-const iterations = 100;
+const number_of_rows = 50;
+const number_of_items_per_row = 20;
 
 const startDate = GSTC.api.date().subtract(5, 'month').valueOf();
 
@@ -15,32 +16,34 @@ function generateNewItems() {
     const rows = gstc.api.getAllRows();
     rowsIds = Object.keys(rows);
   } else {
-    for (let i = 0; i < iterations; i++) {
+    for (let i = 0; i < number_of_rows; i++) {
       rowsIds.push(GSTC.api.GSTCID(String(i)));
     }
   }
   const items = {};
   for (let i = 0, len = rowsIds.length; i < len; i++) {
     let rowId = rowsIds[i];
-    let id = GSTC.api.GSTCID(String(lastItemId++));
-    let startDayjs = GSTC.api
-      .date(startDate)
-      .startOf('day')
-      .add(Math.floor(Math.random() * 365 * 2), 'day');
-    items[id] = {
-      id,
-      label: 'item id ' + GSTC.api.sourceID(id),
-      progress: Math.round(Math.random() * 100),
-      time: {
-        start: startDayjs.startOf('day').valueOf(),
-        end: startDayjs
-          .clone()
-          .add(Math.floor(Math.random() * 20) + 4, 'day')
-          .endOf('day')
-          .valueOf(),
-      },
-      rowId,
-    };
+    for (let j = 0; j < number_of_items_per_row; j++) {
+      let id = GSTC.api.GSTCID(String(lastItemId++));
+      let startDayjs = GSTC.api
+        .date(startDate)
+        .startOf('day')
+        .add(Math.floor(Math.random() * 365 * 2), 'day');
+      items[id] = {
+        id,
+        label: 'item id ' + GSTC.api.sourceID(id),
+        progress: Math.round(Math.random() * 100),
+        time: {
+          start: startDayjs.startOf('day').valueOf(),
+          end: startDayjs
+            .clone()
+            .add(Math.floor(Math.random() * 20) + 4, 'day')
+            .endOf('day')
+            .valueOf(),
+        },
+        rowId,
+      };
+    }
   }
   return items;
 }
@@ -70,7 +73,7 @@ function generateNewItem() {
 
 function generateNewRows() {
   const rows = {};
-  for (let i = 0; i < iterations; i++) {
+  for (let i = 0; i < number_of_rows; i++) {
     const id = GSTC.api.GSTCID(String(lastRowId++));
     rows[id] = {
       id,
@@ -129,6 +132,7 @@ const config = {
     vertical: { precise: false },
   },
   usageStatistics: false,
+  innerHeight: 1000
 };
 
 state = GSTC.api.stateFromConfig(config);
@@ -144,9 +148,13 @@ gstc = GSTC({
 });
 
 function setNewItems() {
+  console.time('TimeItems');
   state.update('config.chart.items', () => {
     return generateNewItems();
   });
+  console.timeEnd('TimeItems');
+  const items = state.get('config.chart.items');
+  console.log('Number of Items', Object.keys(items).length);
 }
 // @ts-ignore
 window.setNewItems = setNewItems;
