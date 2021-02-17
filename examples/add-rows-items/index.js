@@ -1,7 +1,14 @@
 import GSTC from '../../dist/gstc.esm.min.js';
+import { Plugin as TimelinePointer } from '../../dist/plugins/timeline-pointer.esm.min.js';
+import { Plugin as Selection } from '../../dist/plugins/selection.esm.min.js';
+import { Plugin as ItemMovement } from '../../dist/plugins/item-movement.esm.min.js';
+import { Plugin as ItemResizing } from '../../dist/plugins/item-resizing.esm.min.js';
 
 const number_of_rows = 50;
 const number_of_items_per_row = 20;
+
+const canChangeRow = true;
+const canCollide = true;
 
 const startDate = GSTC.api.date().subtract(5, 'month').valueOf();
 
@@ -117,6 +124,62 @@ const columns = {
   },
 };
 
+function isCollision(item) {
+  const allItems = gstc.api.getAllItems();
+  for (const itemId in allItems) {
+    if (itemId === item.id) continue;
+    const currentItem = allItems[itemId];
+    if (currentItem.rowId === item.rowId) {
+      if (
+        item.time.start >= currentItem.time.start &&
+        item.time.start <= currentItem.time.end
+      )
+        return true;
+      if (
+        item.time.end >= currentItem.time.start &&
+        item.time.end <= currentItem.time.end
+      )
+        return true;
+      if (
+        item.time.start <= currentItem.time.start &&
+        item.time.end >= currentItem.time.end
+      )
+        return true;
+      if (
+        item.time.start >= currentItem.time.start &&
+        item.time.end <= currentItem.time.end
+      )
+        return true;
+    }
+  }
+  return false;
+}
+
+const movementPluginConfig = {
+  events: {
+    onMove({ items }) {
+      // prevent items to change row
+      return items.before.map((beforeMovementItem, index) => {
+        const afterMovementItem = items.after[index];
+        const myItem = GSTC.api.merge({}, afterMovementItem);
+        if (!canChangeRow) {
+          myItem.rowId = beforeMovementItem.rowId;
+        }
+        if (!canCollide && isCollision(myItem)) {
+          myItem.time = { ...beforeMovementItem.time };
+          myItem.rowId = beforeMovementItem.rowId;
+        }
+        return myItem;
+      });
+    },
+  },
+  snapToTime: {
+    start({ startTime, time }) {
+      return startTime.startOf('day').add(12, 'hour');
+    },
+  },
+};
+
 const config = {
   licenseKey:
     '====BEGIN LICENSE KEY====\nXOfH/lnVASM6et4Co473t9jPIvhmQ/l0X3Ewog30VudX6GVkOB0n3oDx42NtADJ8HjYrhfXKSNu5EMRb5KzCLvMt/pu7xugjbvpyI1glE7Ha6E5VZwRpb4AC8T1KBF67FKAgaI7YFeOtPFROSCKrW5la38jbE5fo+q2N6wAfEti8la2ie6/7U2V+SdJPqkm/mLY/JBHdvDHoUduwe4zgqBUYLTNUgX6aKdlhpZPuHfj2SMeB/tcTJfH48rN1mgGkNkAT9ovROwI7ReLrdlHrHmJ1UwZZnAfxAC3ftIjgTEHsd/f+JrjW6t+kL6Ef1tT1eQ2DPFLJlhluTD91AsZMUg==||U2FsdGVkX1/SWWqU9YmxtM0T6Nm5mClKwqTaoF9wgZd9rNw2xs4hnY8Ilv8DZtFyNt92xym3eB6WA605N5llLm0D68EQtU9ci1rTEDopZ1ODzcqtTVSoFEloNPFSfW6LTIC9+2LSVBeeHXoLEQiLYHWihHu10Xll3KsH9iBObDACDm1PT7IV4uWvNpNeuKJc\npY3C5SG+3sHRX1aeMnHlKLhaIsOdw2IexjvMqocVpfRpX4wnsabNA0VJ3k95zUPS3vTtSegeDhwbl6j+/FZcGk9i+gAy6LuetlKuARjPYn2LH5Be3Ah+ggSBPlxf3JW9rtWNdUoFByHTcFlhzlU9HnpnBUrgcVMhCQ7SAjN9h2NMGmCr10Rn4OE0WtelNqYVig7KmENaPvFT+k2I0cYZ4KWwxxsQNKbjEAxJxrzK4HkaczCvyQbzj4Ppxx/0q+Cns44OeyWcwYD/vSaJm4Kptwpr+L4y5BoSO/WeqhSUQQ85nvOhtE0pSH/ZXYo3pqjPdQRfNm6NFeBl2lwTmZUEuw==\n====END LICENSE KEY====',
@@ -125,6 +188,12 @@ const config = {
     rows: generateNewRows(),
     columns,
   },
+  plugins: [
+    TimelinePointer({}), // timeline pointer must go first before selection, resizing and movement
+    Selection(),
+    ItemResizing(), // resizing must go before movement
+    ItemMovement(movementPluginConfig),
+  ],
   chart: {
     items: generateNewItems(),
   },
@@ -148,11 +217,11 @@ gstc = GSTC({
 });
 
 function setNewItems() {
-  console.time('TimeItems');
+  console.time('Time create new Items');
   state.update('config.chart.items', () => {
     return generateNewItems();
   });
-  console.timeEnd('TimeItems');
+  console.timeEnd('Time create new Items');
   const items = state.get('config.chart.items');
   console.log('Number of Items', Object.keys(items).length);
 }
